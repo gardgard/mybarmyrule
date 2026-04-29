@@ -1,0 +1,531 @@
+<%
+const isEdit = drink !== null;
+let ingredients = [], tags = [];
+try { ingredients = JSON.parse((drink && drink.ingredients) || '[]'); } catch(e){}
+try { tags = JSON.parse((drink && drink.tags) || '[]'); } catch(e){}
+const action = isEdit ? `/drinks/${drink.id}/edit` : '/drinks/add';
+%>
+
+<div class="form-wrap">
+  <div class="page-header">
+    <a href="<%= isEdit ? '/drinks/'+drink.id : '/drinks' %>" class="back-link">
+      <i class="fa-solid fa-arrow-left"></i> <span data-i18n="backToLib">Back</span>
+    </a>
+    <h2 class="page-title" style="display:flex; flex-direction:row; align-items:center; justify-content:center; gap:15px; text-align:center; width:100%;">
+      <%- isEdit ? '<i class="fa-solid fa-pen-to-square" style="color:var(--gold); font-size:2rem;"></i>' : '<img src="/images/logo.png" style="width:40px; height:40px; object-fit:contain; filter:drop-shadow(0 0 8px rgba(255,255,255,0.2))">' %>
+      <span data-i18n="<%= isEdit ? 'editTitle' : 'addTitle' %>" style="font-size:1.8rem;"><%= isEdit ? 'Edit Drink' : 'Add New Drink' %></span>
+    </h2>
+  </div>
+
+  <% if (error) { %><div class="form-error"><i class="fa-solid fa-circle-exclamation"></i> <%= error %></div><% } %>
+
+  <form action="<%= action %>" method="POST" enctype="multipart/form-data" id="drinkForm">
+    <div class="form-sections">
+
+      <!-- Section: Basic -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-circle-info" style="color:#C9A84C"></i> <span data-i18n="basicInfo">Basic Info</span></h3>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label data-i18n="nameThLabel">ชื่อภาษาไทย *</label>
+            <input type="text" name="name_th" value="<%= (drink && drink.name_th) || '' %>" required placeholder="เช่น โมฮีโต">
+          </div>
+          <div class="form-group">
+            <label data-i18n="nameEnLabel">Name (English)</label>
+            <input type="text" name="name_en" value="<%= (drink && drink.name_en) || '' %>" placeholder="e.g. Mojito">
+          </div>
+          <div class="form-group">
+            <label data-i18n="categoryLabel">Category *</label>
+            <select name="category" required>
+              <% ['cocktail','mocktail','wine','spirit','beer','other'].forEach(c => { %>
+                <option value="<%= c %>" <%= (drink && drink.category===c) ? 'selected':'' %>><%= c.charAt(0).toUpperCase()+c.slice(1) %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="subcategoryLabel">Subcategory / Style</label>
+            <input type="text" name="subcategory" value="<%= (drink && drink.subcategory) || '' %>" list="cocktail-styles" placeholder="e.g. Sour, Single Malt, Red Wine">
+            <datalist id="cocktail-styles">
+              <option value="Sour"></option>
+              <option value="Highball"></option>
+              <option value="Stirred / Spirit-Forward"></option>
+              <option value="Flip & Egg Cocktail"></option>
+              <option value="Fizz / Collins"></option>
+              <option value="Tropical / Tiki"></option>
+              <option value="Cream / Dessert"></option>
+              <option value="Sparkling / Champagne"></option>
+            </datalist>
+          </div>
+          
+          <!-- Custom Collections Checkboxes -->
+          <% if (typeof customCollections !== 'undefined' && customCollections.length > 0) { %>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label style="margin-bottom: 0.75rem;"><i class="fa-solid fa-layer-group" style="color:var(--gold)"></i> หมวดหมู่พิเศษ (Collections)</label>
+            <div class="collection-chips">
+              <% customCollections.forEach(c => { %>
+                <label class="chip-label">
+                  <input type="checkbox" name="collections" value="<%= c.id %>" <%= (typeof drinkCollections !== 'undefined' && drinkCollections.includes(c.id)) ? 'checked' : '' %>>
+                  <span class="chip-text">
+                    <i class="fa-solid fa-check"></i>
+                    <%= c.name %>
+                  </span>
+                </label>
+              <% }) %>
+            </div>
+            <small style="color:var(--text3); margin-top:8px; display:block; font-size: 0.75rem; opacity: 0.8;">
+              <i class="fa-solid fa-info-circle"></i> คุณสามารถจัดเครื่องดื่มลงในหมวดหมู่พิเศษได้หลายหมวดหมู่พร้อมกัน
+            </small>
+          </div>
+          <% } %>
+          
+          <div class="form-group">
+            <label data-i18n="brandLabel">Brand</label>
+            <input type="text" name="brand" value="<%= (drink && drink.brand) || '' %>" placeholder="e.g. Glenfiddich">
+          </div>
+          <div class="form-group">
+            <label data-i18n="countryLabel">Country</label>
+            <input type="text" name="country" value="<%= (drink && drink.country) || '' %>" placeholder="e.g. Scotland">
+          </div>
+          <div class="form-group">
+            <label data-i18n="alcoholLabel">Alcohol %</label>
+            <input type="number" name="alcohol_pct" value="<%= (drink && drink.alcohol_pct) || 0 %>" min="0" max="100" step="0.1">
+          </div>
+          <div class="form-group">
+            <label data-i18n="statusLabel">Status</label>
+            <select name="status">
+              <option value="active"  <%= (drink && drink.status==='active')  ? 'selected':'' %>>Active (ขายอยู่)</option>
+              <option value="testing" <%= (drink && drink.status==='testing') ? 'selected':'' %>>Testing (ทดลอง)</option>
+              <option value="stopped" <%= (drink && drink.status==='stopped') ? 'selected':'' %>>Stopped (หยุดขาย)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Image -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-image" style="color:#C9A84C"></i> <span data-i18n="imageLabel">Photo</span></h3>
+        <div class="upload-zone" id="uploadZone">
+          <% if (drink && drink.image_path) { %>
+            <img src="<%= drink.image_path %>" id="imgPreview" class="upload-preview" alt="preview">
+          <% } else { %>
+            <img id="imgPreview" class="upload-preview" style="display:none" alt="preview">
+          <% } %>
+          <div class="upload-hint" id="uploadHint" <%= (drink && drink.image_path) ? 'style="display:none"' : '' %>>
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size:2rem;color:#C9A84C"></i>
+            <p data-i18n="uploadHint">คลิกหรือลากรูปมาวางที่นี่</p>
+          </div>
+          <input type="file" name="image" id="imageInput" accept="image/*" style="display:none">
+        </div>
+      </div>
+
+      <!-- Section: Flavor -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-droplet" style="color:#C9A84C"></i> <span data-i18n="flavorProfile">Flavor Profile</span></h3>
+        
+        <!-- Sliders Row - Optimized Spacing -->
+        <div class="form-grid-3" style="margin-bottom: 2rem; gap: 1.5rem;">
+          <div class="form-group">
+            <label style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span data-i18n="sweetness" style="font-size: 0.85rem;">Sweetness</span>
+              <span style="color:var(--gold); font-weight:600; font-size: 0.85rem;"><span id="swVal"><%= (drink && drink.sweetness) || 3 %></span> / 5</span>
+            </label>
+            <div class="slider-container">
+              <input type="range" name="sweetness" min="1" max="5" value="<%= (drink && drink.sweetness) || 3 %>" class="flavor-slider" id="swSlider" oninput="document.getElementById('swVal').textContent=this.value">
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span data-i18n="body" style="font-size: 0.85rem;">Body</span>
+              <span style="color:var(--gold); font-weight:600; font-size: 0.85rem;"><span id="btVal"><%= (drink && drink.body) || 3 %></span> / 5</span>
+            </label>
+            <div class="slider-container">
+              <input type="range" name="body" min="1" max="5" value="<%= (drink && drink.body) || 3 %>" class="flavor-slider" oninput="document.getElementById('btVal').textContent=this.value">
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+              <span data-i18n="sourness" style="font-size: 0.85rem;">Sourness</span>
+              <span style="color:var(--gold); font-weight:600; font-size: 0.85rem;"><span id="soVal"><%= (drink && drink.sourness) || 3 %></span> / 5</span>
+            </label>
+            <div class="slider-container">
+              <input type="range" name="sourness" min="1" max="5" value="<%= (drink && drink.sourness) || 3 %>" class="flavor-slider" oninput="document.getElementById('soVal').textContent=this.value">
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes Input Row -->
+        <div class="form-grid-3" style="gap: 1.5rem;">
+          <div class="form-group">
+            <label data-i18n="nose" style="font-size: 0.85rem;">Nose / กลิ่น</label>
+            <div class="input-with-btn">
+              <input type="text" name="nose_notes" id="inp_nose_notes" value="<%= (drink && drink.nose_notes)||'' %>" placeholder="e.g. floral, citrus" onfocus="showInlinePicker('nose_notes')">
+              <button type="button" class="btn-picker-inline" onclick="toggleInlinePicker('nose_notes')"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="palate" style="font-size: 0.85rem;">Palate / รสชาติ</label>
+            <div class="input-with-btn">
+              <input type="text" name="palate" id="inp_palate" value="<%= (drink && drink.palate)||'' %>" placeholder="e.g. fruity, spicy" onfocus="showInlinePicker('palate')">
+              <button type="button" class="btn-picker-inline" onclick="toggleInlinePicker('palate')"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label data-i18n="finish" style="font-size: 0.85rem;">Finish / กลิ่นท้าย</label>
+            <div class="input-with-btn">
+              <input type="text" name="finish" id="inp_finish" value="<%= (drink && drink.finish)||'' %>" placeholder="e.g. long, smoky" onfocus="showInlinePicker('finish')">
+              <button type="button" class="btn-picker-inline" onclick="toggleInlinePicker('finish')"><i class="fa-solid fa-chevron-down"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline Scrollable Picker -->
+        <div id="inlineFlavorPicker" class="inline-picker-container" style="display:none;">
+          <div id="pickerTabs" class="picker-tabs">
+            <!-- Tabs injected by JS -->
+          </div>
+          <div id="flavorList" class="inline-picker-body">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Recipe -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-list-check" style="color:#C9A84C"></i> <span data-i18n="recipe">Recipe</span></h3>
+        <div class="form-group">
+          <label data-i18n="ingredientsLabel">Ingredients (1 per line)</label>
+          <textarea name="ingredients_raw" rows="4" placeholder="Rum 45ml&#10;Lime Juice 30ml&#10;Sugar Syrup 15ml"><% ingredients.forEach((ing,i) => { %><%= i>0?'\n':'' %><%= ing %><% }); %></textarea>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group"><label data-i18n="methodLabel">Method / วิธีทำ</label><textarea name="method" rows="3" placeholder="Shake, Stir, Build..."><%= (drink && drink.method)||'' %></textarea></div>
+          <div class="form-group">
+            <div class="form-group"><label data-i18n="glassLabel">Glass Type</label><input type="text" name="glass_type" value="<%= (drink && drink.glass_type)||'' %>" placeholder="e.g. Highball, Coupe"></div>
+            <div class="form-group" style="margin-top:.75rem"><label data-i18n="garnishLabel">Garnish</label><input type="text" name="garnish" value="<%= (drink && drink.garnish)||'' %>" placeholder="e.g. Mint + Lime Wheel"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Business -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-store" style="color:#C9A84C"></i> <span data-i18n="businessInfo">Business Info</span></h3>
+        <div class="form-grid-3">
+          <div class="form-group"><label data-i18n="priceSell">Sell Price (฿)</label><input type="number" name="price_sell" value="<%= (drink && drink.price_sell)||0 %>" min="0" step="0.5"></div>
+          <div class="form-group"><label data-i18n="priceCost">Cost Price (฿)</label><input type="number" name="price_cost" value="<%= (drink && drink.price_cost)||0 %>" min="0" step="0.5"></div>
+          <div class="form-group"><label data-i18n="supplierLabel">Supplier</label><input type="text" name="supplier" value="<%= (drink && drink.supplier)||'' %>" placeholder="แหล่งซื้อ"></div>
+        </div>
+      </div>
+
+      <!-- Section: Personal -->
+      <div class="form-section">
+        <h3 class="form-section-title"><i class="fa-solid fa-star" style="color:#C9A84C"></i> <span data-i18n="personalNotes">Personal Notes</span></h3>
+        <div class="form-group">
+          <label data-i18n="ratingLabel">Rating</label>
+          <div class="star-picker" id="starPicker">
+            <% for(let i=1;i<=5;i++){ %>
+              <i class="fa-solid fa-star star-pick" data-v="<%= i %>" style="color:<%= (drink && drink.rating>=i) ? '#C9A84C':'#3A3028' %>; font-size:1.8rem; cursor:pointer"></i>
+            <% } %>
+          </div>
+          <input type="hidden" name="rating" id="ratingInput" value="<%= (drink && drink.rating)||3 %>">
+        </div>
+        <div class="form-group"><label data-i18n="notesLabel">Notes / ความประทับใจ</label><textarea name="notes" rows="3" placeholder="บันทึกส่วนตัว..."><%= (drink && drink.notes)||'' %></textarea></div>
+        <div class="form-group">
+          <label data-i18n="tagsLabel">Tags (comma separated)</label>
+          <input type="text" name="tags_raw" value="<%= tags.join(', ') %>" placeholder="signature, bestseller, refreshing">
+        </div>
+      </div>
+
+    </div><!-- end form-sections -->
+
+    <!-- Hidden JSON fields -->
+    <input type="hidden" name="ingredients" id="ingredientsJson">
+    <input type="hidden" name="tags" id="tagsJson">
+
+    <div class="form-submit-row">
+      <a href="<%= isEdit ? '/drinks/'+drink.id : '/drinks' %>" class="btn-ghost" data-i18n="cancelBtn">Cancel</a>
+      <button type="submit" class="btn-primary btn-lg"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="saveBtn">Save Drink</span></button>
+    </div>
+  </form>
+</div>
+
+<style>
+.collection-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 15px;
+  background: rgba(10, 10, 12, 0.4);
+  border: 1px solid rgba(201, 168, 76, 0.1);
+  border-radius: 16px;
+}
+.chip-label { cursor: pointer; position: relative; }
+.chip-label input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+.chip-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text2);
+  padding: 8px 16px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.chip-text i { font-size: 0.7rem; opacity: 0; transform: scale(0.5); transition: 0.2s; }
+
+.chip-label:hover .chip-text { border-color: rgba(201, 168, 76, 0.3); background: rgba(255, 255, 255, 0.05); }
+
+.chip-label input:checked + .chip-text {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 15px rgba(201, 168, 76, 0.1);
+}
+.chip-label input:checked + .chip-text i { opacity: 1; transform: scale(1); }
+
+.btn-picker-inline { 
+  background:rgba(201,168,76,.15); border:1px solid var(--gold); color:var(--gold); 
+  border-radius:8px; width:42px; height:42px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:0.2s; flex-shrink:0;
+}
+.btn-picker-inline:hover { background:var(--gold); color:#0D0D0D; }
+
+.slider-container {
+  padding: 12px 10px;
+  background: rgba(10, 10, 12, 0.4);
+  border-radius: 14px;
+  border: 1px solid rgba(201, 168, 76, 0.1);
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.input-with-btn input { 
+  flex: 1; 
+  min-width: 0; 
+  width: 100%; 
+}
+
+.flavor-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  outline: none;
+}
+.flavor-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #b87333, #C9A84C);
+  cursor: pointer;
+  border: 2px solid #0a0a0c;
+  box-shadow: 0 0 10px rgba(184, 115, 51, 0.4);
+}
+.picker-tabs {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 10px 15px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  scrollbar-width: none;
+}
+.picker-tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text3);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.tab-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+.tab-btn.active {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.inline-picker-body {
+  padding: 1.25rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.flavor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+</style>
+
+<script>
+// Flavor data
+const flavorData = [
+  { cat: "Fruity (ผลไม้)", items: [
+    {icon:"🍋", name:"Lemon"}, {icon:"🍊", name:"Orange"}, {icon:"🍈", name:"Lime"},
+    {icon:"🍏", name:"Green Apple"}, {icon:"🍎", name:"Red Apple"}, {icon:"🍐", name:"Pear"},
+    {icon:"🍑", name:"Peach"}, {icon:"🍒", name:"Cherry"}, {icon:"🍓", name:"Strawberry"},
+    {icon:"🫐", name:"Blueberry"}, {icon:"🍇", name:"Grape"}, {icon:"🍍", name:"Pineapple"},
+    {icon:"🥭", name:"Mango"}, {icon:"🥥", name:"Coconut"}, {icon:"🍈", name:"Melon"},
+    {icon:"🍑", name:"Plum"}, {icon:"🍒", name:"Lychee"}
+  ]},
+  { cat: "Floral & Herbal (ดอกไม้ & สมุนไพร)", items: [
+    {icon:"🌿", name:"Mint"}, {icon:"🌱", name:"Grass"}, {icon:"🌹", name:"Rose"},
+    {icon:"🌸", name:"Blossom"}, {icon:"🌺", name:"Hibiscus"}, {icon:"🌼", name:"Chamomile"},
+    {icon:"🍃", name:"Eucalyptus"}, {icon:"🌲", name:"Pine"}, {icon:"🥒", name:"Cucumber"},
+    {icon:"🫑", name:"Bell Pepper"}, {icon:"🫒", name:"Olive"}
+  ]},
+  { cat: "Spice, Earthy & Wood (เครื่องเทศ & เอิร์ธตี้)", items: [
+    {icon:"🪵", name:"Oak"}, {icon:"🍂", name:"Tobacco"}, {icon:"👞", name:"Leather"},
+    {icon:"☕", name:"Coffee"}, {icon:"🍫", name:"Chocolate"}, {icon:"🍄", name:"Mushroom"},
+    {icon:"🪨", name:"Mineral"}, {icon:"🌿", name:"Vanilla"}, {icon:"🌶️", name:"Black Pepper"},
+    {icon:"🪵", name:"Cinnamon"}, {icon:"🪵", name:"Clove"}, {icon:"🌟", name:"Anise"}
+  ]},
+  { cat: "Sweet, Nutty & Others (ขนม & ถั่ว)", items: [
+    {icon:"🍯", name:"Honey"}, {icon:"🌰", name:"Almond"}, {icon:"🍞", name:"Toast"},
+    {icon:"🧈", name:"Butter"}, {icon:"🥓", name:"Smoke"}, {icon:"🍬", name:"Caramel"},
+    {icon:"🧂", name:"Salt"}
+  ]}
+];
+
+let activeTargetId = null;
+
+function buildFlavorModal() {
+  const container = document.getElementById('flavorList');
+  const tabsContainer = document.getElementById('pickerTabs');
+  
+  // Build Tabs
+  tabsContainer.innerHTML = flavorData.map((group, idx) => `
+    <button type="button" class="tab-btn ${idx === 0 ? 'active' : ''}" onclick="switchPickerTab(${idx})" id="tab-${idx}">
+      ${group.cat.split(' (')[0]}
+    </button>
+  `).join('');
+
+  // Build Content
+  container.innerHTML = flavorData.map((group, idx) => `
+    <div class="flavor-cat-section" id="cat-section-${idx}" style="${idx === 0 ? '' : 'display:none'}">
+      <div class="flavor-cat-title" style="font-size:0.75rem; color:var(--gold); margin-bottom:12px; text-transform:uppercase; letter-spacing:1px; opacity:0.8;">${group.cat}</div>
+      <div class="flavor-grid">
+        ${group.items.map(it => `
+          <div class="flavor-tag" onclick="toggleFlavor(this)" data-val="${it.icon} ${it.name}">
+            <span style="font-size:1.2rem">${it.icon}</span>
+            <span>${it.name}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function switchPickerTab(index) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+  document.querySelectorAll('.flavor-cat-section').forEach((sec, i) => sec.style.display = i === index ? 'block' : 'none');
+}
+
+
+function showInlinePicker(targetId) {
+  activeTargetId = 'inp_' + targetId;
+  const picker = document.getElementById('inlineFlavorPicker');
+  picker.style.display = 'block';
+
+  // Highlight currently selected
+  const targetInput = document.getElementById(activeTargetId);
+  const inputVals = targetInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+  
+  document.querySelectorAll('.flavor-tag').forEach(tag => {
+    const val = tag.dataset.val;
+    tag.classList.toggle('selected', inputVals.includes(val));
+  });
+
+  // Scroll to picker
+  picker.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideInlinePicker() {
+  document.getElementById('inlineFlavorPicker').style.display = 'none';
+  activeTargetId = null;
+}
+
+function toggleInlinePicker(targetId) {
+  const picker = document.getElementById('inlineFlavorPicker');
+  if (picker.style.display === 'block' && activeTargetId === 'inp_' + targetId) {
+    hideInlinePicker();
+  } else {
+    showInlinePicker(targetId);
+  }
+}
+
+function toggleFlavor(el) {
+  el.classList.toggle('selected');
+  const targetInput = document.getElementById(activeTargetId);
+  if (!targetInput) return;
+
+  const currentVals = targetInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+  const val = el.dataset.val;
+
+  if (el.classList.contains('selected')) {
+    if (!currentVals.includes(val)) {
+      currentVals.push(val);
+    }
+  } else {
+    const idx = currentVals.indexOf(val);
+    if (idx !== -1) currentVals.splice(idx, 1);
+  }
+  
+  targetInput.value = currentVals.join(', ');
+}
+
+// Build modal on load
+buildFlavorModal();
+
+// Upload zone
+const zone = document.getElementById('uploadZone');
+const inp  = document.getElementById('imageInput');
+const prev = document.getElementById('imgPreview');
+const hint = document.getElementById('uploadHint');
+zone.addEventListener('click', () => inp.click());
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); if(e.dataTransfer.files[0]) showPreview(e.dataTransfer.files[0]); });
+inp.addEventListener('change', () => { if(inp.files[0]) showPreview(inp.files[0]); });
+function showPreview(file) {
+  const reader = new FileReader();
+  reader.onload = e => { prev.src = e.target.result; prev.style.display='block'; hint.style.display='none'; };
+  reader.readAsDataURL(file);
+  // Assign to actual input
+  const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+}
+
+// Star picker
+document.querySelectorAll('.star-pick').forEach(star => {
+  star.addEventListener('click', () => {
+    const v = parseInt(star.dataset.v);
+    document.getElementById('ratingInput').value = v;
+    document.querySelectorAll('.star-pick').forEach((s,i) => s.style.color = i < v ? '#C9A84C' : '#3A3028');
+  });
+});
+
+// Form submit - convert raw to JSON
+document.getElementById('drinkForm').addEventListener('submit', function() {
+  const raw = document.querySelector('[name=ingredients_raw]').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  document.getElementById('ingredientsJson').value = JSON.stringify(lines);
+
+  const tagsRaw = document.querySelector('[name=tags_raw]').value;
+  const tagsArr = tagsRaw.split(',').map(t=>t.trim()).filter(Boolean);
+  document.getElementById('tagsJson').value = JSON.stringify(tagsArr);
+});
+</script>

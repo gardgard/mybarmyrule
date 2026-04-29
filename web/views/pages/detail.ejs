@@ -1,0 +1,146 @@
+<%
+const catColors = { cocktail:'#FF6B6B', mocktail:'#4ECDC4', wine:'#C0392B', spirit:'#C9A84C', beer:'#F39C12', other:'#9B59B6' };
+const catIcons  = { cocktail:'fa-martini-glass-citrus', mocktail:'fa-glass-water', wine:'fa-wine-glass', spirit:'fa-whiskey-glass', beer:'fa-beer-mug-empty', other:'fa-flask' };
+const color = catColors[drink.category] || '#9B59B6';
+const icon  = catIcons[drink.category]  || 'fa-flask';
+let ingredients = [], tags = [];
+try { ingredients = JSON.parse(drink.ingredients || '[]'); } catch(e){}
+try { tags = JSON.parse(drink.tags || '[]'); } catch(e){}
+%>
+
+<div class="detail-wrap">
+  <!-- Back -->
+  <a href="/drinks" class="back-link"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="backToLib">Back to Library</span></a>
+
+  <div class="detail-hero">
+    <!-- Image -->
+    <div class="detail-img-wrap">
+      <% if (drink.image_path) { %>
+        <img src="<%= drink.image_path %>" alt="<%= drink.name_th %>" class="detail-img">
+      <% } else { %>
+        <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:inherit; padding:40px;">
+          <img src="/images/logo.png" alt="Default" style="width:100%; height:100%; object-fit:contain; opacity:0.5;">
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Header Info -->
+    <div class="detail-header-info">
+      <div class="detail-badges">
+        <span class="badge-cat badge-<%= drink.category %>" style="text-transform: capitalize;"><%= drink.category %></span>
+        <% if (locals.userRole === 'admin') { %>
+        <span class="status-pill <%= drink.status %>">
+          <%= drink.status === 'active' ? '● Active' : drink.status === 'testing' ? '◐ Testing' : '○ Stopped' %>
+        </span>
+        <% } %>
+      </div>
+      <h1 class="detail-title"><%= drink.name_th %></h1>
+      <% if (drink.name_en) { %><p class="detail-title-en"><%= drink.name_en %></p><% } %>
+      <% if (drink.subcategory) { %><p class="detail-brand" style="color:#C9A84C; margin-bottom:0.25rem"><%= drink.subcategory %></p><% } %>
+      <% if (drink.brand || drink.country) { %>
+        <p class="detail-brand"><%= [drink.brand, drink.country].filter(Boolean).join(' · ') %></p>
+      <% } %>
+
+      <!-- Rating -->
+      <div class="detail-rating">
+        <% for(let i=1;i<=5;i++){ %>
+          <i class="fa-solid fa-star" style="color:<%= i<=drink.rating ? '#C9A84C':'#2A2018' %>; font-size:1.4rem"></i>
+        <% } %>
+        <span class="rating-num"><%= drink.rating %>/5</span>
+      </div>
+
+      <!-- Quick info -->
+      <div class="quick-info">
+        <% if (drink.alcohol_pct > 0) { %>
+          <div class="qi-item"><i class="fa-solid fa-percent" style="color:#C9A84C"></i> <%= drink.alcohol_pct %>% ABV</div>
+        <% } %>
+        <% if (drink.glass_type) { %>
+          <div class="qi-item"><i class="fa-solid fa-wine-glass" style="color:#C9A84C"></i> <%= drink.glass_type %></div>
+        <% } %>
+        <% if (locals.userRole === 'admin' && drink.price_sell > 0) { %>
+          <div class="qi-item"><i class="fa-solid fa-tag" style="color:#C9A84C"></i> ฿<%= drink.price_sell %></div>
+        <% } %>
+      </div>
+
+      <% if (locals.userRole === 'admin') { %>
+      <div class="detail-actions">
+        <a href="/drinks/<%= drink.id %>/edit" class="btn-primary"><i class="fa-solid fa-pen"></i> <span data-i18n="editBtn">Edit</span></a>
+        <form action="/drinks/<%= drink.id %>/delete" method="POST" onsubmit="return confirm('ลบเครื่องดื่มนี้?')">
+          <button type="submit" class="btn-danger"><i class="fa-solid fa-trash"></i> <span data-i18n="deleteBtn">Delete</span></button>
+        </form>
+      </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Detail Sections -->
+  <div class="detail-sections">
+
+    <!-- Flavor Profile -->
+    <% if (drink.nose_notes || drink.palate || drink.finish || drink.sweetness || drink.body || drink.sourness) { %>
+    <div class="detail-section">
+      <h3 class="section-title"><i class="fa-solid fa-droplet" style="color:#C9A84C"></i> <span data-i18n="flavorProfile">Flavor Profile</span></h3>
+      <div class="flavor-bars">
+        <div class="flavor-bar-row">
+          <span data-i18n="sweetness">Sweetness</span>
+          <div class="fbar"><div class="fbar-fill" style="width:<%= drink.sweetness*20 %>%; background:#F39C12"></div></div>
+          <span><%= drink.sweetness %>/5</span>
+        </div>
+        <div class="flavor-bar-row">
+          <span data-i18n="body">Body</span>
+          <div class="fbar"><div class="fbar-fill" style="width:<%= drink.body*20 %>%; background:#8B1A2F"></div></div>
+          <span><%= drink.body %>/5</span>
+        </div>
+        <div class="flavor-bar-row">
+          <span data-i18n="sourness">Sourness</span>
+          <div class="fbar"><div class="fbar-fill" style="width:<%= drink.sourness*20 %>%; background:#4ECDC4"></div></div>
+          <span><%= drink.sourness %>/5</span>
+        </div>
+      </div>
+      <div class="flavor-notes">
+        <% if(drink.nose_notes){%><div class="fn-item"><strong data-i18n="nose">Nose:</strong> <%= drink.nose_notes %></div><%}%>
+        <% if(drink.palate){%><div class="fn-item"><strong data-i18n="palate">Palate:</strong> <%= drink.palate %></div><%}%>
+        <% if(drink.finish){%><div class="fn-item"><strong data-i18n="finish">Finish:</strong> <%= drink.finish %></div><%}%>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Ingredients + Method -->
+    <% if (ingredients.length > 0 || drink.method) { %>
+    <div class="detail-section">
+      <h3 class="section-title"><i class="fa-solid fa-list-check" style="color:#C9A84C"></i> <span data-i18n="recipe">Recipe</span></h3>
+      <% if (ingredients.length > 0) { %>
+        <div class="ingredients-list">
+          <% ingredients.forEach(ing => { %><div class="ing-item"><i class="fa-solid fa-circle-dot" style="color:#C9A84C;font-size:.5rem"></i> <%= ing %></div><% }); %>
+        </div>
+      <% } %>
+      <% if (drink.method) { %><p class="method-text"><%= drink.method %></p><% } %>
+      <% if (drink.garnish) { %><p class="garnish-text"><strong data-i18n="garnish">Garnish:</strong> <%= drink.garnish %></p><% } %>
+    </div>
+    <% } %>
+
+    <!-- Business + Notes Row -->
+    <div class="detail-two-col">
+      <% if (locals.userRole === 'admin' && (drink.price_sell || drink.price_cost || drink.supplier)) { %>
+      <div class="detail-section">
+        <h3 class="section-title"><i class="fa-solid fa-store" style="color:#C9A84C"></i> <span data-i18n="businessInfo">Business</span></h3>
+        <% if(drink.price_sell>0){%><div class="biz-row"><span data-i18n="priceSell">Sell:</span> <strong>฿<%= drink.price_sell %></strong></div><%}%>
+        <% if(drink.price_cost>0){%><div class="biz-row"><span data-i18n="priceCost">Cost:</span> <strong>฿<%= drink.price_cost %></strong></div><%}%>
+        <% if(drink.supplier){%><div class="biz-row"><span data-i18n="supplier">Supplier:</span> <%= drink.supplier %></div><%}%>
+      </div>
+      <% } %>
+
+      <% if (locals.userRole === 'admin' && (drink.notes || tags.length > 0)) { %>
+      <div class="detail-section">
+        <h3 class="section-title"><i class="fa-solid fa-note-sticky" style="color:#C9A84C"></i> <span data-i18n="personalNotes">Notes</span></h3>
+        <% if(drink.notes){%><p class="personal-notes"><%= drink.notes %></p><%}%>
+        <% if(tags.length > 0){ %>
+          <div class="tags-wrap">
+            <% tags.forEach(t => { %><span class="tag-pill">#<%= t %></span><% }); %>
+          </div>
+        <% } %>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</div>

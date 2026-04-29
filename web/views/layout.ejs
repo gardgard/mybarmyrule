@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="th" id="html-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="BevAndWine — ระบบบันทึกข้อมูลเครื่องดื่ม Cocktail Mocktail Wine Spirit">
+  <title><%= typeof title !== 'undefined' ? title + ' — MyBarMyRule' : 'MyBarMyRule' %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand" style="display: flex; align-items: center; gap: 12px; padding: 0.5rem 1.5rem 1.5rem;">
+        <img src="/images/logo.png" class="brand-logo" alt="Logo">
+        <div style="display: flex; flex-direction: column;">
+          <div class="brand-title">MyBarMyRule</div>
+          <div class="brand-sub" data-i18n="brandSub">Beverage Journal</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="/drinks" class="nav-item <%= typeof page !== 'undefined' && page === 'library' ? 'active' : '' %>">
+          <i class="fa-solid fa-book-open"></i>
+          <span data-i18n="navLibrary">Library</span>
+        </a>
+        <% if (locals.userRole === 'admin') { %>
+        <a href="/drinks/add" class="nav-item <%= typeof page !== 'undefined' && page === 'add' ? 'active' : '' %>">
+          <i class="fa-solid fa-circle-plus"></i>
+          <span data-i18n="navAdd">Add Drink</span>
+        </a>
+        <% } %>
+      </nav>
+
+      <div class="sidebar-section-label" data-i18n="categories">Categories</div>
+      <nav class="sidebar-cats">
+        <a href="/drinks?category=cocktail" class="cat-link">
+          <span class="cat-dot cat-cocktail"></span><span data-i18n="catCocktail">Cocktail</span>
+        </a>
+        <a href="/drinks?category=mocktail" class="cat-link">
+          <span class="cat-dot cat-mocktail"></span><span data-i18n="catMocktail">Mocktail</span>
+        </a>
+        <a href="/drinks?category=wine" class="cat-link">
+          <span class="cat-dot cat-wine"></span><span data-i18n="catWine">Wine</span>
+        </a>
+        <a href="/drinks?category=spirit" class="cat-link">
+          <span class="cat-dot cat-spirit"></span><span data-i18n="catSpirit">Spirit</span>
+        </a>
+        <a href="/drinks?category=beer" class="cat-link">
+          <span class="cat-dot cat-beer"></span><span data-i18n="catBeer">Beer</span>
+        </a>
+        <a href="/drinks?category=other" class="cat-link">
+          <span class="cat-dot cat-other"></span><span data-i18n="catOther">Other</span>
+        </a>
+
+        <!-- Dynamic Collections as Categories -->
+        <% if (locals.globalCollections) { %>
+          <% locals.globalCollections.forEach(c => { %>
+            <a href="/drinks?collection_id=<%= c.id %>" class="cat-link">
+              <span class="cat-dot" style="background-color:#C9A84C"></span><span><%= c.name %></span>
+            </a>
+          <% }) %>
+        <% } %>
+        
+        <% if (locals.userRole === 'admin') { %>
+        <a href="/collections" class="cat-link" style="margin-top: 10px; color: var(--gold); opacity: 0.8;">
+          <i class="fa-solid fa-plus-circle" style="margin-right:8px;"></i> <span>จัดการหมวดหมู่</span>
+        </a>
+        <% } %>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/logout" class="logout-btn">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span data-i18n="logout">Logout</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-wrapper">
+      <!-- Topbar -->
+      <header class="topbar">
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="topbar-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="globalSearch" data-i18n-placeholder="searchPlaceholder" placeholder="ค้นหาเครื่องดื่ม...">
+        </div>
+        <div class="topbar-right">
+          <button class="lang-btn" id="langToggle">
+            <span id="langFlag">🇹🇭</span>
+            <span id="langLabel">TH</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-content">
+        <%- body %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-nav">
+    <a href="/drinks" class="mnav-item <%= typeof page !== 'undefined' && page === 'library' ? 'active' : '' %>">
+      <i class="fa-solid fa-book-open"></i>
+      <span data-i18n="navLibrary">Library</span>
+    </a>
+    <a href="/drinks/add" class="mnav-item mnav-add">
+      <i class="fa-solid fa-plus"></i>
+    </a>
+    <a href="/drinks?category=cocktail" class="mnav-item">
+      <i class="fa-solid fa-martini-glass-citrus"></i>
+      <span>Cocktail</span>
+    </a>
+    <a href="/logout" class="mnav-item">
+      <i class="fa-solid fa-right-from-bracket"></i>
+      <span data-i18n="logout">Logout</span>
+    </a>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

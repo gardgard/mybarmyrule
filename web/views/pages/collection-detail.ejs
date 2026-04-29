@@ -1,0 +1,82 @@
+<div class="page-header">
+  <a href="/collections" class="back-link">
+    <i class="fa-solid fa-arrow-left"></i> <span data-i18n="navCollections">Collections</span>
+  </a>
+  <h2 class="page-title" style="color:#C9A84C"><%= collection.name %></h2>
+  <button class="btn-primary" onclick="document.getElementById('addDrinksModal').style.display='flex'">
+    <i class="fa-solid fa-plus"></i> เพิ่มเครื่องดื่ม
+  </button>
+</div>
+
+<% if (collection.description) { %>
+  <p style="color:var(--text3); margin-bottom:2rem"><%= collection.description %></p>
+<% } %>
+
+<% if (drinks.length === 0) { %>
+  <div class="empty-state">
+    <i class="fa-solid fa-martini-glass-empty"></i>
+    <p>ยังไม่มีเครื่องดื่มในคอลเลกชันนี้</p>
+    <button class="btn-ghost" onclick="document.getElementById('addDrinksModal').style.display='flex'">เลือกเครื่องดื่มจากคลัง</button>
+  </div>
+<% } else { %>
+  <div class="library-grid">
+    <% drinks.forEach(d => { %>
+      <div class="drink-card" style="position:relative">
+        <form action="/collections/<%= collection.id %>/remove-drink" method="POST" style="position:absolute; top:10px; right:10px; z-index:10">
+          <input type="hidden" name="drink_id" value="<%= d.id %>">
+          <button type="submit" style="background:rgba(0,0,0,0.5); border:none; color:#FF4C4C; border-radius:50%; width:30px; height:30px; cursor:pointer;" onclick="return confirm('นำออกจากคอลเลกชัน?')"><i class="fa-solid fa-minus"></i></button>
+        </form>
+        <a href="/drinks/<%= d.id %>" style="text-decoration:none">
+          <div class="drink-img-wrap">
+            <% if (d.image_path) { %>
+              <img src="<%= d.image_path %>" class="drink-img" alt="<%= d.name_th %>">
+            <% } else { %>
+              <div class="drink-img-placeholder">
+                <i class="fa-solid fa-wine-bottle"></i>
+              </div>
+            <% } %>
+          </div>
+          <div class="drink-info">
+            <span class="drink-category <%= d.category %>"><%= d.category %></span>
+            <h3 class="drink-name"><%= d.name_th %></h3>
+            <% if (d.name_en) { %><p class="drink-brand"><%= d.name_en %></p><% } %>
+          </div>
+        </a>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<!-- Add Drinks Modal -->
+<div id="addDrinksModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:500px">
+    <div class="modal-header">
+      <h3>เลือกเครื่องดื่มเข้าคอลเลกชัน</h3>
+      <button type="button" class="modal-close" onclick="document.getElementById('addDrinksModal').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form action="/collections/<%= collection.id %>/add-drink" method="POST">
+      <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
+        <% if (allDrinks.length === 0) { %>
+          <p style="text-align:center; color:var(--text3)">ไม่มีเครื่องดื่มเหลือให้เพิ่มแล้ว</p>
+        <% } else { %>
+          <div style="display:flex; flex-direction:column; gap:0.5rem">
+            <% allDrinks.forEach(d => { %>
+              <label style="display:flex; align-items:center; gap:1rem; padding:0.75rem; background:var(--bg3); border-radius:8px; cursor:pointer">
+                <input type="checkbox" name="drink_id" value="<%= d.id %>">
+                <% if(d.image_path){ %><img src="<%= d.image_path %>" style="width:40px;height:40px;object-fit:cover;border-radius:4px"><% } else { %><div style="width:40px;height:40px;background:#222;border-radius:4px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-wine-bottle" style="color:#555"></i></div><% } %>
+                <div style="flex:1">
+                  <div style="font-weight:600; color:var(--gold)"><%= d.name_th %></div>
+                  <div style="font-size:0.75rem; color:var(--text3); text-transform:capitalize"><%= d.category %></div>
+                </div>
+              </label>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="document.getElementById('addDrinksModal').style.display='none'">ยกเลิก</button>
+        <button type="submit" class="btn-primary">เพิ่มเข้าคอลเลกชัน</button>
+      </div>
+    </form>
+  </div>
+</div>

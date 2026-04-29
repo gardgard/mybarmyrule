@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyBarMyRule — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { 
+      display:flex; align-items:center; justify-content:center; min-height:100vh; 
+      background-color:#0a0a0c;
+      background-image: 
+        linear-gradient(rgba(10, 10, 12, 0.85), rgba(40, 10, 15, 0.9)), 
+        url('/images/bg-pattern.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    .login-wrap { 
+      text-align:center; width:360px; animation: fadeUp .5s ease; 
+      background: rgba(20, 20, 25, 0.6);
+      backdrop-filter: blur(20px);
+      padding: 3rem 2rem;
+      border-radius: 24px;
+      border: 1px solid rgba(201, 168, 76, 0.2);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .login-logo { 
+      display: block;
+      margin: 0 auto 1.5rem auto; 
+      width: 80px; height: 80px; object-fit: contain; 
+      filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); 
+    }
+    .login-title { font-family:'Playfair Display',serif; font-size:2rem; color:#C9A84C; margin-bottom:.25rem; }
+    .login-sub { color:#5C5248; font-size:.85rem; margin-bottom:2rem; }
+    .pin-dots { display:flex; justify-content:center; gap:1rem; margin-bottom:2rem; }
+    .pin-dot { width:16px; height:16px; border-radius:50%; border:2px solid #3A3028; background:transparent; transition:all .2s; }
+    .pin-dot.filled { background:#C9A84C; border-color:#C9A84C; box-shadow:0 0 12px rgba(201,168,76,.5); }
+    .keypad { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.5rem; }
+    .key-btn { background:rgba(255,255,255,.04); border:1px solid rgba(201,168,76,.15); color:#F5F0E8;
+      font-size:1.4rem; font-family:'Inter',sans-serif; border-radius:12px; padding:1rem;
+      cursor:pointer; transition:all .15s; }
+    .key-btn:hover { background:rgba(201,168,76,.12); border-color:#C9A84C; color:#C9A84C; transform:scale(1.05); }
+    .key-btn:active { transform:scale(.95); }
+    .key-btn.key-del { font-size:1rem; color:#A0988A; }
+    .key-btn.key-ok { background:#C9A84C; border-color:#C9A84C; color:#0D0D0D; font-weight:600; }
+    .key-btn.key-ok:hover { background:#E8C76A; }
+    .error-msg { color:#FF6B6B; font-size:.85rem; margin-top:.5rem; animation:shake .3s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <img src="/images/logo.png" class="login-logo" alt="Logo">
+    <div class="login-title">MyBarMyRule</div>
+    <div class="login-sub">Beverage Library</div>
+
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+
+    <form id="pinForm" action="/login" method="POST">
+      <input type="hidden" name="pin" id="pinInput">
+      <div class="keypad">
+        <button type="button" class="key-btn" data-n="1">1</button>
+        <button type="button" class="key-btn" data-n="2">2</button>
+        <button type="button" class="key-btn" data-n="3">3</button>
+        <button type="button" class="key-btn" data-n="4">4</button>
+        <button type="button" class="key-btn" data-n="5">5</button>
+        <button type="button" class="key-btn" data-n="6">6</button>
+        <button type="button" class="key-btn" data-n="7">7</button>
+        <button type="button" class="key-btn" data-n="8">8</button>
+        <button type="button" class="key-btn" data-n="9">9</button>
+        <button type="button" class="key-btn key-del" id="keyDel"><i class="fa-solid fa-delete-left" style="font-size:1.2rem"></i></button>
+        <button type="button" class="key-btn" data-n="0">0</button>
+        <button type="button" class="key-btn key-ok" id="keyOk"><i class="fa-solid fa-check"></i></button>
+      </div>
+    </form>
+
+    <% if (error) { %>
+      <div class="error-msg"><i class="fa-solid fa-circle-exclamation"></i> <%= error %></div>
+    <% } %>
+  </div>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    let pin = '';
+    function updateDots() {
+      for (let i = 0; i < 4; i++) {
+        document.getElementById('d' + i).classList.toggle('filled', i < pin.length);
+      }
+    }
+    document.querySelectorAll('.key-btn[data-n]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (pin.length < 4) { pin += btn.dataset.n; updateDots(); }
+        if (pin.length === 4) setTimeout(submit, 150);
+      });
+    });
+    document.getElementById('keyDel').addEventListener('click', () => {
+      pin = pin.slice(0, -1); updateDots();
+    });
+    document.getElementById('keyOk').addEventListener('click', submit);
+    function submit() {
+      document.getElementById('pinInput').value = pin;
+      document.getElementById('pinForm').submit();
+    }
+  </script>
+</body>
+</html>
