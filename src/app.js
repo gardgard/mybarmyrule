@@ -9,7 +9,13 @@ const app = express();
 const PORT = process.env.PORT || 3500;
 
 // Init DB
-initDatabase();
+(async () => {
+  try {
+    await initDatabase();
+  } catch (err) {
+    console.error('Failed to init DB:', err);
+  }
+})();
 
 // Middleware
 app.use(express.json());
@@ -43,12 +49,12 @@ const requireAdmin = (req, res, next) => {
 
 // Middleware for global locals
 const { getDb } = require('./db/database');
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   res.locals.userRole = req.session.role || 'guest';
   if (req.session && req.session.authenticated) {
     try {
       const db = getDb();
-      res.locals.globalCollections = db.prepare('SELECT id, name FROM collections ORDER BY name').all();
+      res.locals.globalCollections = await db.query('SELECT id, name FROM collections ORDER BY name');
     } catch(e) {
       res.locals.globalCollections = [];
     }

@@ -50,7 +50,7 @@ function parseDrink(body) {
 }
 
 // GET /drinks — Library
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const db = getDb();
   const { category, subcategory, search, sort, collection_id, f_sweet, f_body, f_sour } = req.query;
 
@@ -96,26 +96,26 @@ router.get('/', (req, res) => {
   };
   sql += ` ORDER BY ${sortMap[sort] || 'created_at DESC'}`;
 
-  const drinks = db.prepare(sql).all(...params);
-  const counts = db.prepare(`SELECT category, COUNT(*) as c FROM drinks GROUP BY category`).all();
+  const drinks = await db.query(sql, params);
+  const counts = await db.query(`SELECT category, COUNT(*) as c FROM drinks GROUP BY category`);
   const catCount = {};
   counts.forEach(r => { catCount[r.category] = r.c; });
 
   let subcategories = [];
   if (category && category !== 'all') {
-    subcategories = db.prepare('SELECT DISTINCT subcategory FROM drinks WHERE category = ? AND subcategory != \'\' AND subcategory IS NOT NULL ORDER BY subcategory').all(category).map(r => r.subcategory);
+    subcategories = (await db.query('SELECT DISTINCT subcategory FROM drinks WHERE category = ? AND subcategory != \'\' AND subcategory IS NOT NULL ORDER BY subcategory', [category])).map(r => r.subcategory);
   }
 
-  const customCollections = db.prepare('SELECT id, name FROM collections ORDER BY name').all();
+  const customCollections = await db.query('SELECT id, name FROM collections ORDER BY name');
 
   let drinksNotInCollection = [];
   if (collection_id) {
-    drinksNotInCollection = db.prepare(`
+    drinksNotInCollection = await db.query(`
       SELECT id, name_th, category, image_path 
       FROM drinks 
       WHERE id NOT IN (SELECT drink_id FROM collection_items WHERE collection_id = ?)
       ORDER BY name_th
-    `).all(collection_id);
+    `, [collection_id]);
   }
 
   res.render('pages/library', {
@@ -138,42 +138,43 @@ router.get('/', (req, res) => {
 });
 
 // GET /drinks/add — Add form
-router.get('/add', (req, res) => {
+router.get('/add', async (req, res) => {
   const db = getDb();
-  const customCollections = db.prepare('SELECT id, name FROM collections ORDER BY name').all();
+  const customCollections = await db.query('SELECT id, name FROM collections ORDER BY name');
   res.render('pages/form', { title: 'Add Drink', page: 'add', drink: null, customCollections, drinkCollections: [], error: null });
 });
 
 // POST /drinks/add — Create
-router.post('/add', upload.single('image'), (req, res) => {
+router.post('/add', upload.single('image'), async (req, res) => {
   const db = getDb();
   const drink = parseDrink(req.body);
   if (req.file) drink.image_path = `/uploads/${req.file.filename}`;
   else drink.image_path = '';
 
   if (!drink.name_th) {
-    return res.render('pages/form', { title: 'Add Drink', page: 'add', drink: req.body, error: 'กรุณาใส่ชื่อเครื่องดื่ม' });
+    const customCollections = await db.query('SELECT id, name FROM collections ORDER BY name');
+    return res.render('pages/form', { title: 'Add Drink', page: 'add', drink: req.body, customCollections, drinkCollections: [], error: 'กรุณาใส่ชื่อเครื่องดื่ม' });
   }
 
-  const insertStmt = db.prepare(`
+  const result = await db.execute(`
     INSERT INTO drinks (name_th,name_en,category,subcategory,brand,country,alcohol_pct,
       nose_notes,palate,finish,sweetness,body,sourness,
       ingredients,method,glass_type,garnish,price_sell,price_cost,
       supplier,status,rating,notes,image_path,tags)
-    VALUES (@name_th,@name_en,@category,@subcategory,@brand,@country,@alcohol_pct,
-      @nose_notes,@palate,@finish,@sweetness,@body,@sourness,
-      @ingredients,@method,@glass_type,@garnish,@price_sell,@price_cost,
-      @supplier,@status,@rating,@notes,@image_path,@tags)
-  `);
-  const info = insertStmt.run(drink);
-  const newDrinkId = info.lastInsertRowid;
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `, [
+    drink.name_th, drink.name_en, drink.category, drink.subcategory, drink.brand, drink.country, drink.alcohol_pct,
+    drink.nose_notes, drink.palate, drink.finish, drink.sweetness, drink.body, drink.sourness,
+    drink.ingredients, drink.method, drink.glass_type, drink.garnish, drink.price_sell, drink.price_cost,
+    drink.supplier, drink.status, drink.rating, drink.notes, drink.image_path, drink.tags
+  ]);
+  const newDrinkId = result.lastID;
 
   // Handle collections
   if (req.body.collections) {
     let colIds = Array.isArray(req.body.collections) ? req.body.collections : [req.body.collections];
-    const insertCol = db.prepare('INSERT INTO collection_items (collection_id, drink_id) VALUES (?, ?)');
     for (const cid of colIds) {
-      insertCol.run(cid, newDrinkId);
+      await db.execute('INSERT INTO collection_items (collection_id, drink_id) VALUES (?, ?)', [cid, newDrinkId]);
     }
   }
 
@@ -181,27 +182,27 @@ router.post('/add', upload.single('image'), (req, res) => {
 });
 
 // GET /drinks/:id — Detail
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const db = getDb();
-  const drink = db.prepare('SELECT * FROM drinks WHERE id = ?').get(req.params.id);
+  const drink = await db.getOne('SELECT * FROM drinks WHERE id = ?', [req.params.id]);
   if (!drink) return res.redirect('/drinks');
   res.render('pages/detail', { title: drink.name_th, page: 'library', drink });
 });
 
 // GET /drinks/:id/edit — Edit form
-router.get('/:id/edit', (req, res) => {
+router.get('/:id/edit', async (req, res) => {
   const db = getDb();
-  const drink = db.prepare('SELECT * FROM drinks WHERE id = ?').get(req.params.id);
+  const drink = await db.getOne('SELECT * FROM drinks WHERE id = ?', [req.params.id]);
   if (!drink) return res.redirect('/drinks');
   
-  const customCollections = db.prepare('SELECT id, name FROM collections ORDER BY name').all();
-  const drinkCollections = db.prepare('SELECT collection_id FROM collection_items WHERE drink_id = ?').all(drink.id).map(r => r.collection_id);
+  const customCollections = await db.query('SELECT id, name FROM collections ORDER BY name');
+  const drinkCollections = (await db.query('SELECT collection_id FROM collection_items WHERE drink_id = ?', [drink.id])).map(r => r.collection_id);
   
   res.render('pages/form', { title: 'Edit Drink', page: 'library', drink, customCollections, drinkCollections, error: null });
 });
 
 // POST /drinks/:id/edit — Update
-router.post('/:id/edit', upload.single('image'), (req, res) => {
+router.post('/:id/edit', upload.single('image'), async (req, res) => {
   const db = getDb();
   const drink = parseDrink(req.body);
   drink.id = req.params.id;
@@ -209,28 +210,35 @@ router.post('/:id/edit', upload.single('image'), (req, res) => {
   if (req.file) {
     drink.image_path = `/uploads/${req.file.filename}`;
   } else {
-    const existing = db.prepare('SELECT image_path FROM drinks WHERE id = ?').get(drink.id);
+    const existing = await db.getOne('SELECT image_path FROM drinks WHERE id = ?', [drink.id]);
     drink.image_path = existing ? existing.image_path : '';
   }
 
-  db.prepare(`
-    UPDATE drinks SET name_th=@name_th,name_en=@name_en,category=@category,subcategory=@subcategory,
-      brand=@brand,country=@country,alcohol_pct=@alcohol_pct,nose_notes=@nose_notes,palate=@palate,
-      finish=@finish,sweetness=@sweetness,body=@body,sourness=@sourness,
-      ingredients=@ingredients,method=@method,glass_type=@glass_type,garnish=@garnish,
-      price_sell=@price_sell,price_cost=@price_cost,supplier=@supplier,status=@status,
-      rating=@rating,notes=@notes,image_path=@image_path,tags=@tags,
+  await db.execute(`
+    UPDATE drinks SET name_th=?,name_en=?,category=?,subcategory=?,
+      brand=?,country=?,alcohol_pct=?,nose_notes=?,palate=?,
+      finish=?,sweetness=?,body=?,sourness=?,
+      ingredients=?,method=?,glass_type=?,garnish=?,
+      price_sell=?,price_cost=?,supplier=?,status=?,
+      rating=?,notes=?,image_path=?,tags=?,
       updated_at=CURRENT_TIMESTAMP
-    WHERE id=@id
-  `).run(drink);
+    WHERE id=?
+  `, [
+    drink.name_th, drink.name_en, drink.category, drink.subcategory,
+    drink.brand, drink.country, drink.alcohol_pct, drink.nose_notes, drink.palate,
+    drink.finish, drink.sweetness, drink.body, drink.sourness,
+    drink.ingredients, drink.method, drink.glass_type, drink.garnish,
+    drink.price_sell, drink.price_cost, drink.supplier, drink.status,
+    drink.rating, drink.notes, drink.image_path, drink.tags,
+    drink.id
+  ]);
 
   // Update collections
-  db.prepare('DELETE FROM collection_items WHERE drink_id = ?').run(drink.id);
+  await db.execute('DELETE FROM collection_items WHERE drink_id = ?', [drink.id]);
   if (req.body.collections) {
     let colIds = Array.isArray(req.body.collections) ? req.body.collections : [req.body.collections];
-    const insertCol = db.prepare('INSERT INTO collection_items (collection_id, drink_id) VALUES (?, ?)');
     for (const cid of colIds) {
-      insertCol.run(cid, drink.id);
+      await db.execute('INSERT INTO collection_items (collection_id, drink_id) VALUES (?, ?)', [cid, drink.id]);
     }
   }
 
@@ -238,14 +246,14 @@ router.post('/:id/edit', upload.single('image'), (req, res) => {
 });
 
 // POST /drinks/:id/delete — Delete
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res) => {
   const db = getDb();
-  const drink = db.prepare('SELECT image_path FROM drinks WHERE id = ?').get(req.params.id);
+  const drink = await db.getOne('SELECT image_path FROM drinks WHERE id = ?', [req.params.id]);
   if (drink && drink.image_path) {
     const imgPath = path.join(__dirname, '../../public', drink.image_path);
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   }
-  db.prepare('DELETE FROM drinks WHERE id = ?').run(req.params.id);
+  await db.execute('DELETE FROM drinks WHERE id = ?', [req.params.id]);
   res.redirect('/drinks');
 });
 

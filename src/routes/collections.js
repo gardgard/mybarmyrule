@@ -19,10 +19,9 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // GET /collections - List all collections
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const db = getDb();
-  // Get collections with count of drinks and a cover image (either collection cover or first drink image)
-  const collections = db.prepare(`
+  const collections = await db.query(`
     SELECT c.*, 
            COUNT(ci.drink_id) as drink_count,
            (SELECT d.image_path FROM collection_items ci2 
@@ -32,43 +31,41 @@ router.get('/', (req, res) => {
     LEFT JOIN collection_items ci ON c.id = ci.collection_id
     GROUP BY c.id
     ORDER BY c.name
-  `).all();
+  `);
   
   res.render('pages/collections', { page: 'collections', collections });
 });
 
 // POST /collections/add - Create new collection
-router.post('/add', upload.single('cover_image'), (req, res) => {
+router.post('/add', upload.single('cover_image'), async (req, res) => {
   const { name, description } = req.body;
   if (!name) return res.redirect('/collections');
   
   const cover_image = req.file ? `/uploads/collections/${req.file.filename}` : '';
   const db = getDb();
-  db.prepare('INSERT INTO collections (name, description, cover_image) VALUES (?, ?, ?)').run(name, description || '', cover_image);
+  await db.execute('INSERT INTO collections (name, description, cover_image) VALUES (?, ?, ?)', [name, description || '', cover_image]);
   res.redirect('/collections');
 });
 
 // GET /collections/:id - View collection detail
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const db = getDb();
-  const collection = db.prepare('SELECT * FROM collections WHERE id = ?').get(req.params.id);
+  const collection = await db.getOne('SELECT * FROM collections WHERE id = ?', [req.params.id]);
   if (!collection) return res.redirect('/collections');
 
-  // Get drinks in this collection
-  const drinks = db.prepare(`
+  const drinks = await db.query(`
     SELECT d.* FROM drinks d
     JOIN collection_items ci ON d.id = ci.drink_id
     WHERE ci.collection_id = ?
     ORDER BY ci.sort_order, d.name_th
-  `).all(collection.id);
+  `, [collection.id]);
 
-  // Get all drinks for the "Add Drink" modal, excluding those already in collection
-  const allDrinks = db.prepare(`
+  const allDrinks = await db.query(`
     SELECT id, name_th, name_en, category, image_path 
     FROM drinks 
     WHERE id NOT IN (SELECT drink_id FROM collection_items WHERE collection_id = ?)
     ORDER BY name_th
-  `).all(collection.id);
+  `, [collection.id]);
 
   res.render('pages/collection-detail', { 
     page: 'collections', 
@@ -79,52 +76,41 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /collections/:id/add-drink
-router.post('/:id/add-drink', (req, res) => {
+router.post('/:id/add-drink', async (req, res) => {
   const collectionId = req.params.id;
-  const { drink_id, return_to } = req.body; // Can be an array if multiple selected
+  const { drink_id, return_to } = req.body;
   const db = getDb();
 
-  const insert = db.prepare('INSERT OR IGNORE INTO collection_items (collection_id, drink_id) VALUES (?, ?)');
+  const addOne = async (did) => {
+    await db.execute('INSERT OR IGNORE INTO collection_items (collection_id, drink_id) VALUES (?, ?)', [collectionId, did]);
+  };
   
   if (Array.isArray(drink_id)) {
-    const insertMany = db.transaction((drinks) => {
-      for (const id of drinks) insert.run(collectionId, id);
-    });
-    insertMany(drink_id);
+    for (const id of drink_id) await addOne(id);
   } else if (drink_id) {
-    insert.run(collectionId, drink_id);
+    await addOne(drink_id);
   }
 
-  if (return_to) {
-    res.redirect(return_to);
-  } else {
-    res.redirect(`/collections/${collectionId}`);
-  }
+  res.redirect(return_to || `/collections/${collectionId}`);
 });
 
 // POST /collections/:id/remove-drink
-router.post('/:id/remove-drink', (req, res) => {
+router.post('/:id/remove-drink', async (req, res) => {
   const collectionId = req.params.id;
   const { drink_id, return_to } = req.body;
   
   const db = getDb();
-  db.prepare('DELETE FROM collection_items WHERE collection_id = ? AND drink_id = ?').run(collectionId, drink_id);
-  if (return_to) {
-    res.redirect(return_to);
-  } else {
-    res.redirect(`/collections/${collectionId}`);
-  }
+  await db.execute('DELETE FROM collection_items WHERE collection_id = ? AND drink_id = ?', [collectionId, drink_id]);
+  res.redirect(return_to || `/collections/${collectionId}`);
 });
 
 // POST /collections/:id/delete - Delete collection
-router.post('/:id/delete', (req, res) => {
+router.post('/:id/delete', async (req, res) => {
   const db = getDb();
   const id = req.params.id;
   
-  // First delete items in collection
-  db.prepare('DELETE FROM collection_items WHERE collection_id = ?').run(id);
-  // Then delete the collection itself
-  db.prepare('DELETE FROM collections WHERE id = ?').run(id);
+  await db.execute('DELETE FROM collection_items WHERE collection_id = ?', [id]);
+  await db.execute('DELETE FROM collections WHERE id = ?', [id]);
   
   res.redirect('/collections');
 });

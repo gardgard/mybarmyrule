@@ -1,4 +1,4 @@
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
@@ -9,17 +9,31 @@ let db;
 
 function getDb() {
   if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
+    db = new sqlite3.Database(DB_PATH);
+    // Enable WAL and Foreign Keys
+    db.run('PRAGMA journal_mode = WAL');
+    db.run('PRAGMA foreign_keys = ON');
+    
+    // Add Promise wrappers
+    db.query = (sql, params = []) => new Promise((resolve, reject) => {
+      db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
+    db.getOne = (sql, params = []) => new Promise((resolve, reject) => {
+      db.get(sql, params, (err, row) => err ? reject(err) : resolve(row));
+    });
+    db.execute = (sql, params = []) => new Promise((resolve, reject) => {
+      db.run(sql, params, function(err) {
+        err ? reject(err) : resolve({ lastID: this.lastID, changes: this.changes });
+      });
+    });
   }
   return db;
 }
 
-function initDatabase() {
-  const db = getDb();
-
-  db.exec(`
+async function initDatabase() {
+  const database = getDb();
+  
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS drinks (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name_th     TEXT NOT NULL,
@@ -50,7 +64,9 @@ function initDatabase() {
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+  `);
 
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS collections (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       name        TEXT NOT NULL,
@@ -58,7 +74,9 @@ function initDatabase() {
       cover_image TEXT DEFAULT '',
       created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+  `);
 
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS collection_items (
       collection_id INTEGER,
       drink_id      INTEGER,
@@ -69,16 +87,15 @@ function initDatabase() {
     );
   `);
 
-  // Seed sample data if empty
-  const count = db.prepare('SELECT COUNT(*) as c FROM drinks').get();
+  const count = await database.getOne('SELECT COUNT(*) as c FROM drinks');
   if (count.c === 0) {
-    const insert = db.prepare(`
+    const sql = `
       INSERT INTO drinks (name_th, name_en, category, subcategory, brand, country, alcohol_pct,
         nose_notes, palate, finish, sweetness, body, sourness,
         ingredients, method, glass_type, garnish, price_sell, price_cost,
         status, rating, notes, tags)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    `;
 
     const seeds = [
       ['โมฮีโต', 'Mojito', 'cocktail', '', 'Havana Club', 'Cuba', 5,
@@ -115,17 +132,18 @@ function initDatabase() {
        'เมนูสำหรับลูกค้าไม่ดื่มแอลกอฮอล์', JSON.stringify(['mocktail','non-alcoholic','refreshing'])]
     ];
 
-    seeds.forEach(s => insert.run(...s));
+    for (const s of seeds) {
+      await database.execute(sql, s);
+    }
   }
 
-  // Seed collections if empty
-  const cCount = db.prepare('SELECT COUNT(*) as c FROM collections').get();
+  const cCount = await database.getOne('SELECT COUNT(*) as c FROM collections');
   if (cCount.c === 0) {
-    db.prepare("INSERT INTO collections (name, description) VALUES ('Welcome Drink', 'เครื่องดื่มสำหรับต้อนรับลูกค้า')").run();
-    db.prepare("INSERT INTO collections (name, description) VALUES ('Zero Proof', 'เมนูไร้แอลกอฮอล์สำหรับ Pairing')").run();
+    await database.execute("INSERT INTO collections (name, description) VALUES ('Welcome Drink', 'เครื่องดื่มสำหรับต้อนรับลูกค้า')");
+    await database.execute("INSERT INTO collections (name, description) VALUES ('Zero Proof', 'เมนูไร้แอลกอฮอล์สำหรับ Pairing')");
   }
 
-  console.log('✅ Database initialized:', DB_PATH);
+  console.log('✅ Database initialized (sqlite3):', DB_PATH);
 }
 
 module.exports = { getDb, initDatabase };
